@@ -1,0 +1,488 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>学園祭 注文管理</title>
+<style>
+  :root {
+    --bg: #f5f3ee;
+    --surface: #ffffff;
+    --surface2: #f0ede6;
+    --border: #e0dbd0;
+    --border2: #ccc7ba;
+    --text: #1a1814;
+    --text2: #6b6760;
+    --text3: #9e9b95;
+    --cook-bg: #fff8ec;
+    --cook-border: #f5d78a;
+    --cook-text: #7a5500;
+    --cook-accent: #e8a800;
+    --instant-bg: #eef6ff;
+    --instant-border: #a8d0f5;
+    --instant-text: #1a4f7a;
+    --instant-accent: #2980d4;
+    --green: #1a7a52;
+    --green-bg: #e8f7f0;
+    --green-light: #c5ecd9;
+    --red: #c0392b;
+    --red-bg: #fdf0ee;
+    --radius: 10px;
+    --radius-sm: 6px;
+    --shadow: 0 1px 3px rgba(0,0,0,.08);
+    --shadow-md: 0 4px 16px rgba(0,0,0,.10);
+  }
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Hiragino Kaku Gothic ProN', 'Noto Sans JP', sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; }
+
+  /* ===== TOP NAV ===== */
+  .topbar { background: var(--surface); border-bottom: 1px solid var(--border); padding: 0 1.5rem; display: flex; align-items: center; justify-content: space-between; height: 56px; position: sticky; top: 0; z-index: 100; }
+  .topbar-title { font-size: 16px; font-weight: 700; letter-spacing: -.02em; }
+  .topbar-title span { opacity: .45; font-weight: 400; margin-left: 6px; font-size: 13px; }
+  .topbar-sales { font-size: 13px; color: var(--text2); display: flex; align-items: center; gap: 16px; }
+  .topbar-sales strong { color: var(--green); font-size: 18px; font-weight: 700; }
+
+  /* ===== TABS ===== */
+  .tabs { display: flex; background: var(--surface); border-bottom: 1px solid var(--border); padding: 0 1.5rem; gap: 0; }
+  .tab { padding: 14px 24px; font-size: 14px; font-weight: 600; cursor: pointer; border: none; background: none; color: var(--text3); border-bottom: 3px solid transparent; transition: color .15s, border-color .15s; position: relative; top: 1px; }
+  .tab.cook.active { color: var(--cook-text); border-color: var(--cook-accent); }
+  .tab.instant.active { color: var(--instant-text); border-color: var(--instant-accent); }
+  .tab.sales-tab.active { color: var(--green); border-color: var(--green); }
+  .tab:hover:not(.active) { color: var(--text2); }
+  .tab .dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-left: 6px; vertical-align: middle; }
+  .tab.cook .dot { background: var(--cook-accent); }
+  .tab.instant .dot { background: var(--instant-accent); }
+
+  /* ===== PAGE ===== */
+  .page { display: none; }
+  .page.active { display: block; }
+
+  /* ===== REGISTER LAYOUT ===== */
+  .register { max-width: 960px; margin: 0 auto; padding: 1.25rem 1.25rem; display: grid; grid-template-columns: 1fr 340px; gap: 1.25rem; align-items: start; }
+  @media (max-width: 700px) { .register { grid-template-columns: 1fr; } }
+
+  /* ===== STAT BAR ===== */
+  .stat-bar { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 1.25rem; }
+  .stat-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 12px 14px; }
+  .stat-label { font-size: 11px; color: var(--text3); margin-bottom: 4px; letter-spacing: .04em; }
+  .stat-value { font-size: 22px; font-weight: 700; color: var(--text); }
+  .stat-value.green { color: var(--green); }
+
+  /* ===== MENU SECTION ===== */
+  .section-title { font-size: 11px; font-weight: 600; color: var(--text3); letter-spacing: .07em; text-transform: uppercase; margin-bottom: 10px; }
+  .menu-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 8px; margin-bottom: 1.25rem; }
+  .menu-card { background: var(--surface); border: 1.5px solid var(--border); border-radius: var(--radius); padding: 12px; cursor: pointer; transition: border-color .15s, box-shadow .15s, transform .1s; user-select: none; }
+  .menu-card:hover { box-shadow: var(--shadow-md); transform: translateY(-1px); }
+  .menu-card:active { transform: scale(.97); }
+  .menu-card.cook { border-color: var(--cook-border); background: var(--cook-bg); }
+  .menu-card.instant { border-color: var(--instant-border); background: var(--instant-bg); }
+  .menu-card .name { font-size: 14px; font-weight: 600; margin-bottom: 4px; }
+  .menu-card.cook .name { color: var(--cook-text); }
+  .menu-card.instant .name { color: var(--instant-text); }
+  .menu-card .price { font-size: 13px; font-weight: 700; color: var(--text2); }
+
+  /* ===== ORDER LIST ===== */
+  .orders-section { }
+  .order-filters { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 10px; }
+  .filt { font-size: 12px; padding: 4px 12px; border-radius: 20px; border: 1px solid var(--border2); background: none; cursor: pointer; color: var(--text2); transition: background .12s, color .12s; }
+  .filt.active.cook { background: var(--cook-accent); color: #fff; border-color: var(--cook-accent); }
+  .filt.active.instant { background: var(--instant-accent); color: #fff; border-color: var(--instant-accent); }
+  .filt.active.neutral { background: var(--text); color: #fff; border-color: var(--text); }
+  .orders-list { display: flex; flex-direction: column; gap: 8px; }
+  .order-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 12px 14px; }
+  .order-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }
+  .order-num { font-size: 13px; font-weight: 700; }
+  .order-time { font-size: 11px; color: var(--text3); }
+  .status-pill { font-size: 11px; font-weight: 600; padding: 3px 9px; border-radius: 20px; }
+  .s-waiting { background: #fff3cd; color: #856404; }
+  .s-cooking { background: #cfe2ff; color: #084298; }
+  .s-ready   { background: #d1e7dd; color: #0a3622; }
+  .s-done    { background: var(--surface2); color: var(--text3); }
+  .s-instant-ready { background: #d1e7dd; color: #0a3622; }
+  .order-items-text { font-size: 12px; color: var(--text2); margin-bottom: 10px; }
+  .order-foot { display: flex; align-items: center; justify-content: space-between; }
+  .order-amt { font-size: 14px; font-weight: 700; }
+  .order-actions { display: flex; gap: 6px; }
+  .btn-next { font-size: 12px; font-weight: 600; padding: 5px 12px; border-radius: var(--radius-sm); border: none; cursor: pointer; transition: opacity .12s; }
+  .btn-next.cook { background: var(--cook-accent); color: #fff; }
+  .btn-next.instant { background: var(--instant-accent); color: #fff; }
+  .btn-cancel { font-size: 12px; padding: 5px 10px; border-radius: var(--radius-sm); border: 1px solid var(--border2); background: none; color: var(--text3); cursor: pointer; }
+  .btn-cancel:hover { color: var(--red); border-color: var(--red); }
+  .empty-msg { font-size: 13px; color: var(--text3); text-align: center; padding: 2rem 0; }
+
+  /* ===== CART SIDEBAR ===== */
+  .cart-box { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 1rem; position: sticky; top: 72px; }
+  .cart-title { font-size: 13px; font-weight: 700; margin-bottom: 12px; display: flex; align-items: center; justify-content: space-between; }
+  .cart-clear { font-size: 11px; color: var(--text3); cursor: pointer; font-weight: 400; }
+  .cart-clear:hover { color: var(--red); }
+  .cart-items { min-height: 60px; margin-bottom: 12px; }
+  .cart-empty { font-size: 13px; color: var(--text3); text-align: center; padding: 1rem 0; }
+  .cart-row { display: flex; align-items: center; gap: 8px; padding: 6px 0; border-bottom: 1px solid var(--border); }
+  .cart-row:last-child { border-bottom: none; }
+  .cart-name { font-size: 13px; flex: 1; }
+  .qty-ctrl { display: flex; align-items: center; gap: 4px; }
+  .qbtn { width: 22px; height: 22px; border: 1px solid var(--border2); border-radius: 4px; background: none; font-size: 14px; cursor: pointer; display: flex; align-items: center; justify-content: center; color: var(--text); line-height: 1; }
+  .qnum { font-size: 13px; min-width: 18px; text-align: center; font-weight: 600; }
+  .cart-sub { font-size: 12px; color: var(--text2); min-width: 52px; text-align: right; }
+  .cart-total-row { display: flex; justify-content: space-between; align-items: center; padding: 10px 0 12px; border-top: 1px solid var(--border); margin-top: 4px; }
+  .cart-total-label { font-size: 13px; color: var(--text2); }
+  .cart-total-val { font-size: 20px; font-weight: 700; }
+  .btn-order { width: 100%; padding: 12px; border-radius: var(--radius); border: none; font-size: 15px; font-weight: 700; cursor: pointer; transition: opacity .15s; }
+  .btn-order.cook { background: var(--cook-accent); color: #fff; }
+  .btn-order.instant { background: var(--instant-accent); color: #fff; }
+  .btn-order:disabled { background: var(--surface2); color: var(--text3); cursor: default; }
+
+  /* ===== SALES PAGE ===== */
+  .sales-page { max-width: 860px; margin: 0 auto; padding: 1.25rem; }
+  .sales-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1.25rem; margin-bottom: 1.25rem; }
+  @media (max-width: 600px) { .sales-grid { grid-template-columns: 1fr; } }
+  .sales-total-bar { display: grid; grid-template-columns: repeat(3,1fr); gap: 8px; margin-bottom: 1.25rem; }
+  .sales-box { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 1rem; }
+  .sales-box-title { font-size: 12px; font-weight: 700; letter-spacing: .05em; color: var(--text2); margin-bottom: 12px; display: flex; align-items: center; gap: 6px; }
+  .cook-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--cook-accent); display: inline-block; }
+  .instant-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--instant-accent); display: inline-block; }
+  .sales-row { display: flex; align-items: center; justify-content: space-between; padding: 7px 0; border-bottom: 1px solid var(--border); font-size: 13px; }
+  .sales-row:last-child { border-bottom: none; }
+  .sales-item-name { color: var(--text); }
+  .sales-item-meta { color: var(--text3); font-size: 12px; margin-left: 8px; }
+  .sales-item-amt { font-weight: 700; }
+  .big-total { font-size: 28px; font-weight: 800; color: var(--green); }
+  .reset-btn { margin-top: 1.5rem; padding: 10px 20px; border-radius: var(--radius-sm); border: 1px solid var(--border2); background: none; color: var(--text3); font-size: 13px; cursor: pointer; }
+  .reset-btn:hover { color: var(--red); border-color: var(--red); }
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="topbar-title">🏮 学園祭 注文管理<span id="topbar-sub">本日の売上</span></div>
+  <div class="topbar-sales">合計売上 <strong id="topbar-total">¥0</strong></div>
+</div>
+
+<div class="tabs">
+  <button class="tab cook active" onclick="showPage('cook',this)">🍳 調理レジ<span class="dot"></span></button>
+  <button class="tab instant" onclick="showPage('instant',this)">🥤 即渡しレジ<span class="dot"></span></button>
+  <button class="tab sales-tab" onclick="showPage('sales',this)">📊 売上集計</button>
+</div>
+
+<!-- ===== 調理レジ ===== -->
+<div class="page active" id="page-cook">
+  <div class="register">
+    <div>
+      <div class="stat-bar">
+        <div class="stat-card"><div class="stat-label">受付中</div><div class="stat-value" id="cook-active">0</div></div>
+        <div class="stat-card"><div class="stat-label">完了件数</div><div class="stat-value" id="cook-done">0</div></div>
+        <div class="stat-card"><div class="stat-label">売上</div><div class="stat-value green" id="cook-sales">¥0</div></div>
+      </div>
+      <div class="section-title">メニュー（調理あり）</div>
+      <div class="menu-grid" id="cook-menu"></div>
+      <div class="section-title">注文一覧</div>
+      <div class="order-filters" id="cook-filters"></div>
+      <div class="orders-list" id="cook-orders"></div>
+    </div>
+    <div>
+      <div class="cart-box">
+        <div class="cart-title">カート <span class="cart-clear" onclick="clearCart('cook')">クリア</span></div>
+        <div class="cart-items" id="cook-cart-items"><div class="cart-empty">メニューを選んでください</div></div>
+        <div class="cart-total-row"><span class="cart-total-label">合計</span><span class="cart-total-val" id="cook-cart-total">¥0</span></div>
+        <button class="btn-order cook" id="cook-order-btn" onclick="placeOrder('cook')" disabled>注文を確定する</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ===== 即渡しレジ ===== -->
+<div class="page" id="page-instant">
+  <div class="register">
+    <div>
+      <div class="stat-bar">
+        <div class="stat-card"><div class="stat-label">受付中</div><div class="stat-value" id="instant-active">0</div></div>
+        <div class="stat-card"><div class="stat-label">完了件数</div><div class="stat-value" id="instant-done">0</div></div>
+        <div class="stat-card"><div class="stat-label">売上</div><div class="stat-value green" id="instant-sales">¥0</div></div>
+      </div>
+      <div class="section-title">メニュー（即渡し）</div>
+      <div class="menu-grid" id="instant-menu"></div>
+      <div class="section-title">注文一覧</div>
+      <div class="order-filters" id="instant-filters"></div>
+      <div class="orders-list" id="instant-orders"></div>
+    </div>
+    <div>
+      <div class="cart-box">
+        <div class="cart-title">カート <span class="cart-clear" onclick="clearCart('instant')">クリア</span></div>
+        <div class="cart-items" id="instant-cart-items"><div class="cart-empty">メニューを選んでください</div></div>
+        <div class="cart-total-row"><span class="cart-total-label">合計</span><span class="cart-total-val" id="instant-cart-total">¥0</span></div>
+        <button class="btn-order instant" id="instant-order-btn" onclick="placeOrder('instant')" disabled>注文を確定する</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ===== 売上集計 ===== -->
+<div class="page" id="page-sales">
+  <div class="sales-page">
+    <div class="sales-total-bar">
+      <div class="stat-card"><div class="stat-label">総売上</div><div class="big-total" id="total-all">¥0</div></div>
+      <div class="stat-card"><div class="stat-label">調理レジ売上</div><div class="stat-value green" id="total-cook">¥0</div></div>
+      <div class="stat-card"><div class="stat-label">即渡しレジ売上</div><div class="stat-value green" id="total-instant">¥0</div></div>
+    </div>
+    <div class="sales-grid">
+      <div class="sales-box">
+        <div class="sales-box-title"><span class="cook-dot"></span>調理レジ 商品別売上</div>
+        <div id="cook-breakdown"><div class="empty-msg">まだ売上はありません</div></div>
+      </div>
+      <div class="sales-box">
+        <div class="sales-box-title"><span class="instant-dot"></span>即渡しレジ 商品別売上</div>
+        <div id="instant-breakdown"><div class="empty-msg">まだ売上はありません</div></div>
+      </div>
+    </div>
+    <button class="reset-btn" onclick="resetAll()">⚠ 全データをリセット</button>
+  </div>
+</div>
+
+<script>
+const MENUS = {
+  cook: [
+    {id:'c1', name:'焼きそば', price:400},
+    {id:'c2', name:'たこ焼き', price:500},
+    {id:'c3', name:'唐揚げ', price:350},
+    {id:'c4', name:'フランクフルト', price:300},
+  ],
+  instant: [
+    {id:'i1', name:'ジュース', price:150},
+    {id:'i2', name:'チョコバナナ', price:300},
+    {id:'i3', name:'わたあめ', price:200},
+    {id:'i4', name:'ポップコーン', price:250},
+    {id:'i5', name:'かき氷', price:350},
+  ]
+};
+
+const COOK_FLOW = ['waiting','cooking','ready','done'];
+const COOK_LABELS = {waiting:'受付待ち', cooking:'調理中', ready:'提供待ち', done:'完了'};
+const COOK_NEXT   = {waiting:'調理開始', cooking:'調理完了', ready:'提供完了'};
+const INST_FLOW = ['ready','done'];
+const INST_LABELS = {ready:'受渡し待ち', done:'完了'};
+const INST_NEXT   = {ready:'受渡し完了'};
+
+let state = {
+  cook:    { cart:{}, orders:[], counter:1, filter:'all' },
+  instant: { cart:{}, orders:[], counter:1, filter:'all' }
+};
+
+// ===== TABS =====
+function showPage(name, btn) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.getElementById('page-' + name).classList.add('active');
+  btn.classList.add('active');
+  if (name === 'sales') renderSales();
+}
+
+// ===== INIT MENUS =====
+function initMenus() {
+  ['cook','instant'].forEach(type => {
+    const grid = document.getElementById(type + '-menu');
+    MENUS[type].forEach(item => {
+      const d = document.createElement('div');
+      d.className = 'menu-card ' + type;
+      d.innerHTML = `<div class="name">${item.name}</div><div class="price">¥${item.price}</div>`;
+      d.onclick = () => addToCart(type, item.id);
+      grid.appendChild(d);
+    });
+  });
+}
+
+// ===== CART =====
+function addToCart(type, id) {
+  const s = state[type];
+  s.cart[id] = (s.cart[id] || 0) + 1;
+  renderCart(type);
+}
+function updateQty(type, id, delta) {
+  const s = state[type];
+  s.cart[id] = (s.cart[id] || 0) + delta;
+  if (s.cart[id] <= 0) delete s.cart[id];
+  renderCart(type);
+}
+function clearCart(type) {
+  state[type].cart = {};
+  renderCart(type);
+}
+function renderCart(type) {
+  const s = state[type];
+  const itemsEl = document.getElementById(type + '-cart-items');
+  const totalEl = document.getElementById(type + '-cart-total');
+  const btnEl   = document.getElementById(type + '-order-btn');
+  const keys = Object.keys(s.cart);
+  if (!keys.length) {
+    itemsEl.innerHTML = '<div class="cart-empty">メニューを選んでください</div>';
+    totalEl.textContent = '¥0'; btnEl.disabled = true; return;
+  }
+  let sum = 0;
+  itemsEl.innerHTML = keys.map(id => {
+    const item = MENUS[type].find(m => m.id === id);
+    const sub = item.price * s.cart[id]; sum += sub;
+    return `<div class="cart-row">
+      <span class="cart-name">${item.name}</span>
+      <div class="qty-ctrl">
+        <button class="qbtn" onclick="updateQty('${type}','${id}',-1)">−</button>
+        <span class="qnum">${s.cart[id]}</span>
+        <button class="qbtn" onclick="updateQty('${type}','${id}',1)">+</button>
+      </div>
+      <span class="cart-sub">¥${sub.toLocaleString()}</span>
+    </div>`;
+  }).join('');
+  totalEl.textContent = '¥' + sum.toLocaleString();
+  btnEl.disabled = false;
+}
+
+// ===== ORDER =====
+function placeOrder(type) {
+  const s = state[type];
+  const items = Object.keys(s.cart).map(id => {
+    const item = MENUS[type].find(m => m.id === id);
+    return { ...item, qty: s.cart[id] };
+  });
+  const total = items.reduce((acc, i) => acc + i.price * i.qty, 0);
+  const now = new Date();
+  const time = now.getHours().toString().padStart(2,'0') + ':' + now.getMinutes().toString().padStart(2,'0');
+  const initStatus = type === 'cook' ? 'waiting' : 'ready';
+  s.orders.unshift({ id: s.counter++, items, total, status: initStatus, time, done: false });
+  s.cart = {};
+  renderCart(type);
+  renderOrders(type);
+  updateStats(type);
+  updateTopbar();
+}
+
+// ===== STATUS ADVANCE =====
+function nextStatus(type, orderId) {
+  const s = state[type];
+  const o = s.orders.find(x => x.id === orderId);
+  if (!o) return;
+  const flow = type === 'cook' ? COOK_FLOW : INST_FLOW;
+  const idx = flow.indexOf(o.status);
+  if (idx < flow.length - 1) {
+    o.status = flow[idx + 1];
+    if (o.status === 'done') o.done = true;
+  }
+  renderOrders(type);
+  updateStats(type);
+  updateTopbar();
+}
+function cancelOrder(type, orderId) {
+  if (!confirm('この注文を取り消しますか？')) return;
+  state[type].orders = state[type].orders.filter(x => x.id !== orderId);
+  renderOrders(type);
+  updateStats(type);
+  updateTopbar();
+}
+
+// ===== RENDER ORDERS =====
+function renderOrders(type) {
+  const s = state[type];
+  const isCook = type === 'cook';
+  const labels = isCook ? COOK_LABELS : INST_LABELS;
+  const nextBtns = isCook ? COOK_NEXT : INST_NEXT;
+  const pillClass = { waiting:'s-waiting', cooking:'s-cooking', ready:'s-ready', done:'s-done' };
+
+  // filters
+  const filterEl = document.getElementById(type + '-filters');
+  const allStatuses = isCook ? ['waiting','cooking','ready','done'] : ['ready','done'];
+  const counts = {};
+  allStatuses.forEach(st => counts[st] = s.orders.filter(o => o.status === st).length);
+  filterEl.innerHTML = `<button class="filt ${s.filter==='all'?'active neutral':''}" onclick="setFilter('${type}','all',this)">すべて (${s.orders.length})</button>` +
+    allStatuses.map(st => `<button class="filt ${s.filter===st?'active '+type:''}" onclick="setFilter('${type}','${st}',this)">${labels[st]} (${counts[st]})</button>`).join('');
+
+  // orders
+  const filtered = s.filter === 'all' ? s.orders : s.orders.filter(o => o.status === s.filter);
+  const listEl = document.getElementById(type + '-orders');
+  if (!filtered.length) { listEl.innerHTML = '<div class="empty-msg">注文はありません</div>'; return; }
+  listEl.innerHTML = filtered.map(o => {
+    const itemsText = o.items.map(i => `${i.name} ×${i.qty}`).join('、');
+    const hasNext = o.status !== 'done';
+    const actions = hasNext
+      ? `<button class="btn-next ${type}" onclick="nextStatus('${type}',${o.id})">${nextBtns[o.status]}</button>
+         <button class="btn-cancel" onclick="cancelOrder('${type}',${o.id})">取消</button>`
+      : '';
+    return `<div class="order-card">
+      <div class="order-head">
+        <span class="order-num">注文 #${o.id}</span>
+        <div style="display:flex;align-items:center;gap:8px">
+          <span class="order-time">${o.time}</span>
+          <span class="status-pill ${pillClass[o.status]}">${labels[o.status]}</span>
+        </div>
+      </div>
+      <div class="order-items-text">${itemsText}</div>
+      <div class="order-foot">
+        <span class="order-amt">¥${o.total.toLocaleString()}</span>
+        <div class="order-actions">${actions}</div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function setFilter(type, filter, btn) {
+  state[type].filter = filter;
+  renderOrders(type);
+}
+
+// ===== STATS =====
+function updateStats(type) {
+  const s = state[type];
+  const active = s.orders.filter(o => !o.done).length;
+  const done   = s.orders.filter(o =>  o.done).length;
+  const sales  = s.orders.filter(o =>  o.done).reduce((acc,o) => acc + o.total, 0);
+  document.getElementById(type + '-active').textContent = active;
+  document.getElementById(type + '-done').textContent   = done;
+  document.getElementById(type + '-sales').textContent  = '¥' + sales.toLocaleString();
+}
+
+function updateTopbar() {
+  const cookSales    = state.cook.orders.filter(o=>o.done).reduce((a,o)=>a+o.total,0);
+  const instantSales = state.instant.orders.filter(o=>o.done).reduce((a,o)=>a+o.total,0);
+  document.getElementById('topbar-total').textContent = '¥' + (cookSales + instantSales).toLocaleString();
+}
+
+// ===== SALES PAGE =====
+function renderSales() {
+  const cookSales    = state.cook.orders.filter(o=>o.done).reduce((a,o)=>a+o.total,0);
+  const instantSales = state.instant.orders.filter(o=>o.done).reduce((a,o)=>a+o.total,0);
+  document.getElementById('total-all').textContent     = '¥' + (cookSales + instantSales).toLocaleString();
+  document.getElementById('total-cook').textContent    = '¥' + cookSales.toLocaleString();
+  document.getElementById('total-instant').textContent = '¥' + instantSales.toLocaleString();
+
+  ['cook','instant'].forEach(type => {
+    const doneOrders = state[type].orders.filter(o => o.done);
+    const el = document.getElementById(type + '-breakdown');
+    if (!doneOrders.length) { el.innerHTML = '<div class="empty-msg">まだ売上はありません</div>'; return; }
+    const tally = {};
+    doneOrders.forEach(o => o.items.forEach(i => {
+      if (!tally[i.id]) tally[i.id] = { name: i.name, qty: 0, total: 0 };
+      tally[i.id].qty   += i.qty;
+      tally[i.id].total += i.price * i.qty;
+    }));
+    const sorted = Object.values(tally).sort((a,b) => b.total - a.total);
+    el.innerHTML = sorted.map(t =>
+      `<div class="sales-row">
+        <span class="sales-item-name">${t.name}<span class="sales-item-meta">${t.qty}個</span></span>
+        <span class="sales-item-amt">¥${t.total.toLocaleString()}</span>
+      </div>`
+    ).join('');
+  });
+}
+
+// ===== RESET =====
+function resetAll() {
+  if (!confirm('全データをリセットします。よろしいですか？')) return;
+  state = {
+    cook:    { cart:{}, orders:[], counter:1, filter:'all' },
+    instant: { cart:{}, orders:[], counter:1, filter:'all' }
+  };
+  ['cook','instant'].forEach(type => { renderCart(type); renderOrders(type); updateStats(type); });
+  updateTopbar();
+}
+
+initMenus();
+['cook','instant'].forEach(t => { renderCart(t); renderOrders(t); updateStats(t); });
+</script>
+</body>
+</html>
